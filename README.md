@@ -1,6 +1,6 @@
 # URL_Shortner-GoLang
 
-## Hello from the URL Shortner GoLang server!
+### Hello from the URL Shortner GoLang server!
 
 ## Shorten a URL:
 ###  POST http://localhost:2020/shorten
