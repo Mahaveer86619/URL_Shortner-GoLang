@@ -51,9 +51,11 @@ func createURL(originalURL string) (string, error) {
 
 	//* Create a reference to the new short URL document
 	ref := client.Collection("shortUrls").NewDoc()
+	id := ref.ID
 
 	//* Make a new ShortURL struct
 	shortURLData := &ShortenedURL{
+		ID:          id,
 		OriginalURL: originalURL,
 		ShortURL:    shortURL,
 		CreatedDate: time.Now(),
@@ -68,7 +70,26 @@ func createURL(originalURL string) (string, error) {
 	return shortURL, nil
 }
 
-func Shorten(w http.ResponseWriter, r *http.Request) {
+func getOriginalURL(shortURL string) string {
+	ctx := context.Background()
+
+	//* Get a reference to the database
+	client, err := config.GetClient()
+	if err != nil {
+		fmt.Print("error", err)
+	}
+
+	docs := client.Collection("shortUrls").Where("ShortURL", "==", shortURL).Documents(ctx)
+	data, err := docs.Next()
+	if err != nil {
+		fmt.Print("error", err)
+	}
+
+	return data.Data()["OriginalURL"].(string)
+
+}
+
+func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 	// Set content type for JSON response
     w.Header().Set("Content-Type", "application/json")
 
@@ -96,7 +117,7 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
     }
 
     // Construct the response object
-    response := map[string]string{"short_url": shortURL}
+    response := map[string]string{"short_url": "http://localhost:2020/redirect?shortURL=" + shortURL}
 
     // Encode the response object as JSON
     jsonData, err := json.Marshal(response)
@@ -110,6 +131,15 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
     w.Write(jsonData)
 }
 
-// func getURL(shortURL string) (URL, error) {
+func RedirectHandler(w http.ResponseWriter, r *http.Request) {
+    shortURL := r.URL.Query().Get("shortURL")
 
-// }
+	if shortURL == "" {
+        http.Error(w, "Missing short URL in request path", http.StatusBadRequest)
+        return
+    }
+
+	fmt.Println("Redirecting to: ", getOriginalURL(shortURL))
+
+	http.Redirect(w, r, getOriginalURL(shortURL), http.StatusFound)
+}
